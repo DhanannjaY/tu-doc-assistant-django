@@ -12,6 +12,8 @@ from .validators.feedback_generator import (
     generate_wordcount_feedback,
 )
 
+MAX_DOCUMENT_UPLOAD_BYTES = 10 * 1024 * 1024
+
 
 @api_view(['GET'])
 def get_templates(request):
@@ -70,16 +72,21 @@ def analyze_document(request):
     file_type = None
 
     if file:
-        filename = file.name.lower()
+        extension = file.name.rsplit('.', 1)[-1].lower() if '.' in file.name else ''
+        if extension not in ('pdf', 'docx'):
+            return Response({"error": "Supported file types: PDF, DOCX"}, status=400)
+        if file.size > MAX_DOCUMENT_UPLOAD_BYTES:
+            return Response({"error": "The uploaded file exceeds the 10 MB limit."}, status=413)
+
         file_bytes = file.read()
 
-        if filename.endswith('.pdf'):
+        if extension == 'pdf':
             try:
                 text = extract_from_pdf(file_bytes)
                 file_type = 'pdf'
             except ValueError as e:
                 return Response({"error": str(e)}, status=400)
-        elif filename.endswith('.docx'):
+        else:
             try:
                 text = extract_from_docx(file_bytes)
                 docx_formatting = extract_formatting_from_docx(file_bytes)
@@ -87,9 +94,7 @@ def analyze_document(request):
             except ValueError as e:
                 return Response({"error": str(e)}, status=400)
 
-        else:
-            return Response({"error": "Supported file types: PDF, DOCX"}, status=400)       
-   # Validate text
+    # Validate text
     if not text:
         return Response({"error": "Document text vaa file required xa."}, status=400)
     if len(text.split()) < 30:
@@ -114,25 +119,36 @@ def analyze_document(request):
     section_guides = generate_section_feedback(structure['missing'], structure['found'], text, doc_type)
     enhanced_wordcount = generate_wordcount_feedback(wordcount['section_results'], doc_type)
 
-    # Score
-    # Word count — score ma count nagarne (suggestion matra ho)
-    wc_warnings = len([r for r in wordcount['section_results'] if r['type'] == 'info'])
-    wc_score = 15  # always full marks — format/structure nai important
-
-    # Score
+    # Word-count estimates are guidance, not part of the readiness score.
     is_proposal = any(
         i.get('type') == 'error' and 'PROPOSAL' in i.get('message', '')
         for i in numbering_issues
     )
-    structure_score = round((structure['sections_found'] / structure['total_required']) * 50)
+    structure_score = min(
+        50,
+        max(0, round((structure['sections_found'] / structure['total_required']) * 50)),
+    )
     language_score = max(0, 35 - (len(language['issues']) * 8) - (len(language['warnings']) * 3))
     fmt_errors = len([f for f in formatting['formatting_hints'] if f['type'] == 'error'])
     fmt_score = max(0, 15 - (fmt_errors * 4))
-    
-    total_score = min(100, structure_score + language_score + wc_score + fmt_score)
+    total_score = min(100, structure_score + language_score + fmt_score)
 
     if is_proposal:
         total_score = min(total_score, 20)  # cap proposal score at 20
+
+    actionable_types = {'error', 'warning'}
+    total_issues = (
+        len(structure['missing'])
+        + len(structure['subsection_issues'])
+        + sum(i.get('type') in actionable_types for i in numbering_issues)
+        + sum(i.get('type') in actionable_types for i in group_info['group_feedback'])
+        + len(language['issues'])
+        + len(language['warnings'])
+        + sum(
+            f.get('type') in actionable_types
+            for f in formatting['formatting_hints']
+        )
+    )
 
     return Response({
         "doc_type": doc_type,
@@ -141,9 +157,15 @@ def analyze_document(request):
         "course_code": structure["course_code"],
         "file_type": file_type or "text",
         "score": total_score,
+        "score_breakdown": {
+            "structure": {"score": structure_score, "max": 50},
+            "language": {"score": language_score, "max": 35},
+            "formatting": {"score": fmt_score, "max": 15},
+            "proposal_cap": 20 if is_proposal else None,
+        },
         "total_words": wordcount['total_words'],
         "numbering_issues": numbering_issues,
-        "total_issues": len(structure['missing']) + len(language['issues']) + len(language['warnings']) + wc_warnings + fmt_errors,
+        "total_issues": total_issues,
         "structure": {
             "sections_found": structure['sections_found'],
             "total_required": structure['total_required'],

@@ -3,83 +3,236 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TU BCA | Document Assistant</title>
+  <title>TU BCA Document Assistant | Report Review</title>
+  <meta name="description" content="Check TU BCA project and internship reports for required sections, academic language, and formatting before submission."/>
+  <meta name="theme-color" content="#FAF8F4"/>
+  <meta property="og:title" content="TU BCA Document Assistant"/>
+  <meta property="og:description" content="Review report structure, academic language, and formatting before submission."/>
+  <meta property="og:type" content="website"/>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M18 3 33 30H3z' fill='none' stroke='%237A2E1A' stroke-width='2'/%3E%3Cpath d='m18 11 9 16H9z' fill='none' stroke='%2380521F' stroke-width='1.5'/%3E%3Ccircle cx='18' cy='21' r='2.5' fill='%2380521F'/%3E%3C/svg%3E"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <!-- Background texture -->
   <div class="bg-texture"></div>
 
   <div class="app">
 
-    <!-- ── HEADER ── -->
+    <aside class="notice-bar" aria-label="Important information">
+      <span class="notice-mark" aria-hidden="true"></span>
+      Independent student support. Confirm the latest requirements with your department.
+      <a href="#scoring">How the review works</a>
+    </aside>
+
     <header class="header">
       <div class="header-left">
-        <div class="header-emblem">
+        <a class="brand-link" href="#top" aria-label="TU BCA Document Assistant home">
+          <span class="header-emblem" aria-hidden="true">
           <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-            <polygon points="18,2 34,30 2,30" fill="none" stroke="#C4884A" stroke-width="1.5"/>
-            <polygon points="18,10 28,26 8,26" fill="none" stroke="#C4884A" stroke-width="1"/>
-            <circle cx="18" cy="20" r="3" fill="#C4884A"/>
+            <polygon points="18,2 34,30 2,30" fill="none" stroke="#80521F" stroke-width="1.5"/>
+            <polygon points="18,10 28,26 8,26" fill="none" stroke="#80521F" stroke-width="1"/>
+            <circle cx="18" cy="20" r="3" fill="#80521F"/>
           </svg>
-        </div>
+          </span>
         <div class="header-text">
           <span class="header-label">Tribhuvan University · FOHSS</span>
-          <h1 class="header-title">Document Assistant</h1>
+          <span class="header-title">Document Assistant</span>
         </div>
+        </a>
       </div>
       <div class="header-right">
-        <span class="header-badge">BCA · BIM · BIT</span>
+        <nav class="desktop-nav" aria-label="Main navigation">
+          <a href="#analyzer">Check a report</a>
+          <a href="#supported">Report types</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#scoring">Evaluation framework</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <a class="header-cta" href="#analyzer">Start a check <span aria-hidden="true">→</span></a>
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open navigation">
+          <span></span><span></span>
+        </button>
       </div>
     </header>
 
-    <!-- ── PROGRESS BAR ── -->
-    <div class="progress-track">
-      <div class="progress-fill" id="progress-fill"></div>
-    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation" hidden>
+      <a href="#analyzer">Check a report</a>
+      <a href="#supported">Report types</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#scoring">How scoring works</a>
+      <a href="#faq">Frequently asked questions</a>
+    </nav>
 
-    <!-- ── STEP INDICATORS ── -->
-    <nav class="step-nav">
-      <div class="step-item active" id="step1-dot">
+    <main id="main-content">
+      <section class="hero-section" id="top" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-mark" aria-hidden="true"></span> Report review for TU BCA students</p>
+          <h1 class="hero-title" id="hero-title">A clearer way to review your report before final defense.</h1>
+          <p class="hero-description">Check chapter structure, academic language, and formatting consistency before submission. Get focused feedback and a readiness score to help plan your next revision.</p>
+          <a class="btn-primary hero-cta" href="#analyzer">
+            Start a report check
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </a>
+          <a class="hero-secondary" href="#scoring">
+            View evaluation criteria
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M3 7h8M7 3l4 4-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </a>
+          <p class="hero-note">For supported TU BCA reports. Feedback is advisory, not an official grade.</p>
+          <ul class="hero-facts" aria-label="Checker details">
+            <li><span class="fact-mark" aria-hidden="true">✓</span> <span id="template-count">4</span> report templates</li>
+            <li><span class="fact-mark" aria-hidden="true">✓</span> PDF and DOCX</li>
+            <li><span class="fact-mark" aria-hidden="true">✓</span> No account required</li>
+          </ul>
+        </div>
+        <div class="hero-visual">
+          <div class="review-card">
+            <div class="review-card-top">
+              <div>
+                <span class="review-kicker">Evaluation framework</span>
+                <h2 id="review-framework-title">Three parts of a report</h2>
+              </div>
+              <span class="review-seal" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 3 21 20H3L12 3Z" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="m12 9 4 8H8l4-8Z" stroke="currentColor" stroke-width="1.2"/>
+                </svg>
+              </span>
+            </div>
+            <div class="review-row">
+              <span class="review-index">01</span>
+              <span class="review-label">Structure &amp; completeness</span>
+              <span class="review-weight">50 pts</span>
+              <span class="review-track"><span style="--weight:100%"></span></span>
+              <span class="review-detail">Required chapters and numbering</span>
+            </div>
+            <div class="review-row">
+              <span class="review-index">02</span>
+              <span class="review-label">Academic language</span>
+              <span class="review-weight">35 pts</span>
+              <span class="review-track"><span style="--weight:70%"></span></span>
+              <span class="review-detail">Grammar, tone, and citation checks</span>
+            </div>
+            <div class="review-row">
+              <span class="review-index">03</span>
+              <span class="review-label">Formatting &amp; presentation</span>
+              <span class="review-weight">15 pts</span>
+              <span class="review-track"><span style="--weight:30%"></span></span>
+              <span class="review-detail">DOCX layout and style checks</span>
+            </div>
+            <div class="review-card-foot">
+              <span>Word count is guidance only</span>
+              <a href="#scoring">View score details <span aria-hidden="true">↗</span></a>
+            </div>
+          </div>
+          <span class="hero-stamp" aria-hidden="true">TU<br/>BCA</span>
+        </div>
+      </section>
+
+      <section class="tagline-section reveal-section" aria-label="A focused review helps you decide what to revise">
+        <p class="tagline-label">A better next step</p>
+        <p class="tagline-copy" id="tagline-copy">
+          <span class="tagline-word">Know</span>
+          <span class="tagline-word">what</span>
+          <span class="tagline-word">is</span>
+          <span class="tagline-word">present.</span>
+          <span class="tagline-word">See</span>
+          <span class="tagline-word">what</span>
+          <span class="tagline-word">needs</span>
+          <span class="tagline-word">attention.</span>
+          <span class="tagline-word">Choose</span>
+          <span class="tagline-word">what</span>
+          <span class="tagline-word">to</span>
+          <span class="tagline-word">revise</span>
+          <span class="tagline-word">next.</span>
+        </p>
+        <p class="tagline-note">Use focused feedback to decide what to revise. Always follow the latest instructions from your supervisor and department.</p>
+      </section>
+
+      <section class="analyzer-section content-section" id="analyzer" aria-labelledby="analyzer-title">
+        <div class="section-heading analyzer-heading">
+          <div>
+            <p class="eyebrow">The document checker</p>
+            <h2 class="section-title" id="analyzer-title">Start with your report type</h2>
+          </div>
+          <p class="section-description">Choose the closest template and add your document. You can upload a file or paste text in the next step.</p>
+        </div>
+
+        <div class="progress-track" role="progressbar" aria-label="Analysis progress" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+      <nav aria-label="Document analysis steps">
+        <ol class="step-nav">
+        <li class="step-item active" id="step1-dot" aria-current="step">
         <div class="step-pill">
           <span class="step-num">01</span>
           <span class="step-label">Select Type</span>
         </div>
-      </div>
-      <div class="step-connector"></div>
-      <div class="step-item" id="step2-dot">
+      </li>
+      <li class="step-connector" aria-hidden="true"></li>
+      <li class="step-item" id="step2-dot">
         <div class="step-pill">
           <span class="step-num">02</span>
           <span class="step-label">Upload</span>
         </div>
-      </div>
-      <div class="step-connector"></div>
-      <div class="step-item" id="step3-dot">
+      </li>
+      <li class="step-connector" aria-hidden="true"></li>
+      <li class="step-item" id="step3-dot">
         <div class="step-pill">
           <span class="step-num">03</span>
           <span class="step-label">Analysis</span>
         </div>
-      </div>
-    </nav>
+      </li>
+        </ol>
+      </nav>
+      <p class="sr-only" id="step-announcement" role="status" aria-live="polite"></p>
 
     <!-- ══════════════════════════════════
          STEP 1 — SELECT DOC TYPE
     ══════════════════════════════════ -->
-    <section id="step1" class="section-panel">
+    <section id="step1" class="section-panel" aria-labelledby="step1-title">
       <div class="panel-header">
-        <h2 class="panel-title">Select your document type</h2>
+        <h2 class="panel-title" id="step1-title" tabindex="-1">Select your document type</h2>
         <p class="panel-sub">Choose the semester and report type to load the correct TU FOHSS template</p>
       </div>
 
-      <div class="doc-grid" id="doc-cards">
-        <!-- Rendered by JS -->
+      <div class="doc-grid" id="doc-cards" aria-busy="true">
+        <div class="doc-card-skeleton" aria-hidden="true"></div>
+        <div class="doc-card-skeleton" aria-hidden="true"></div>
+        <div class="doc-card-skeleton" aria-hidden="true"></div>
+        <div class="doc-card-skeleton" aria-hidden="true"></div>
       </div>
+      <p class="inline-message" id="template-status" role="alert" hidden></p>
+
+      <div class="upload-first-step">
+        <button type="button" class="upload-zone" id="upload-area" aria-describedby="upload-hint upload-status">
+          <span id="upload-content">
+            <span class="upload-first-step-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 13V4m0 0L6.5 7.5M10 4l3.5 3.5M4 13v3h12v-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="upload-title">Drop your PDF or Word document here</span>
+            <span class="upload-first-step-help" id="upload-hint">PDF or DOCX up to 10 MB. DOCX is recommended for formatting checks.</span>
+            <span class="upload-btn-label">Browse computer</span>
+          </span>
+        </button>
+        <input type="file" id="file-input" accept=".pdf,.docx" hidden aria-hidden="true" tabindex="-1"/>
+        <p class="upload-paste-prompt">Prefer not to upload a file? <button type="button" id="paste-text-button">Paste report text instead</button></p>
+      </div>
+      <p class="inline-message" id="upload-status" role="status" aria-live="polite" hidden></p>
 
       <div class="action-row">
         <button class="btn-primary" id="step1-next" disabled onclick="goToStep2()">
-          Continue
+          Continue to upload
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
@@ -90,15 +243,15 @@
     <!-- ══════════════════════════════════
          STEP 2 — UPLOAD / PASTE
     ══════════════════════════════════ -->
-    <section id="step2" class="section-panel" style="display:none">
+    <section id="step2" class="section-panel" aria-labelledby="step2-title" hidden>
       <div class="two-col-layout">
 
         <!-- Left: Template sections -->
         <div class="col-left">
           <div class="col-header">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="12" height="12" rx="2" stroke="#C4884A" stroke-width="1.2"/>
-              <path d="M4 5h6M4 7h6M4 9h4" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round"/>
+              <rect x="1" y="1" width="12" height="12" rx="2" stroke="#80521F" stroke-width="1.2"/>
+              <path d="M4 5h6M4 7h6M4 9h4" stroke="#80521F" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
             Required sections
           </div>
@@ -120,50 +273,50 @@
 
         <!-- Right: Upload area -->
         <div class="col-right">
+          <h2 class="sr-only" id="step2-title" tabindex="-1">Add your document</h2>
           <div class="col-header">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1v8M4 4L7 1l3 3" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="#C4884A" stroke-width="1.2" stroke-linecap="round"/>
+              <path d="M7 1v8M4 4L7 1l3 3" stroke="#80521F" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2" stroke="#80521F" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
             Upload your document
           </div>
 
-          <!-- Upload zone -->
-          <div class="upload-zone" id="upload-area"
-               onclick="document.getElementById('file-input').click()">
-            <input type="file" id="file-input" accept=".pdf,.docx"
-                   style="display:none"/>
-            <div id="upload-content">
-              <div class="upload-icon-wrap">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                  <rect x="4" y="4" width="24" height="24" rx="4" stroke="#C4884A" stroke-width="1.5" stroke-dasharray="4 3"/>
-                  <path d="M16 20v-8M12 16l4-4 4 4" stroke="#C4884A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </div>
-              <p class="upload-title">Drop your file here</p>
-              <p class="upload-hint">PDF or DOCX · Max 10MB</p>
-              <span class="upload-btn-label">Browse files</span>
-            </div>
+          <div class="selected-file-summary" id="selected-file-summary">
+            <span class="selected-file-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M4 2.75h6l4 4v8.5H4zM10 2.75v4h4M6.5 10h5M6.5 12.5h5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <span class="selected-file-copy">
+              <strong id="selected-file-name">No file selected</strong>
+              <span id="selected-file-detail">You can paste report text below instead.</span>
+            </span>
+            <button type="button" class="selected-file-action" id="change-file-button">Choose file</button>
           </div>
 
           <div class="divider-or"><span>or paste text</span></div>
 
           <div class="textarea-wrap">
+            <label class="textarea-label" for="doc-text">Document text</label>
             <textarea id="doc-text"
+              aria-describedby="text-help word-count"
               placeholder="Paste the full content of your document here...&#10;&#10;Include all chapter headings for accurate section detection.&#10;Example: 'Chapter 1: Introduction', '1.1 Problem Statement'"></textarea>
             <div class="textarea-footer">
-              <span id="word-count" class="word-count-badge">0 words</span>
+              <span id="word-count" class="word-count-badge" aria-label="0 words">0 words</span>
             </div>
+            <p class="field-help" id="text-help">Include chapter headings for more accurate section detection. At least 30 words are required.</p>
           </div>
+          <p class="inline-message" id="input-error" role="alert" tabindex="-1" hidden></p>
 
           <div class="action-row">
-            <button class="btn-ghost" onclick="goToStep1()">
+            <button class="btn-ghost" type="button" onclick="goToStep1()">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
               Back
             </button>
-            <button class="btn-primary" onclick="analyze()">
+            <button class="btn-primary" type="button" id="analyze-button" onclick="analyze()">
               Analyze document
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
@@ -178,10 +331,12 @@
     <!-- ══════════════════════════════════
          STEP 3 — RESULTS
     ══════════════════════════════════ -->
-    <section id="step3" class="section-panel" style="display:none">
+    <section id="step3" class="section-panel" aria-labelledby="step3-title" hidden>
+      <h2 class="panel-title results-title" id="step3-title" tabindex="-1">Analysis results</h2>
+      <p class="sr-only" id="result-announcement" role="status" aria-live="polite" aria-atomic="true"></p>
 
       <!-- Loading -->
-      <div id="loading" class="loading-state">
+      <div id="loading" class="loading-state" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
         <div class="loading-ring">
           <svg width="48" height="48" viewBox="0 0 48 48">
             <circle cx="24" cy="24" r="20" fill="none" stroke="#EDE8E0" stroke-width="3"/>
@@ -190,43 +345,199 @@
               style="transform-origin:center;animation:spin 1.2s linear infinite"/>
           </svg>
         </div>
-        <p class="loading-msg" id="load-msg">Checking document structure...</p>
+        <p class="loading-msg" id="load-msg">Analyzing your document...</p>
         <p class="loading-sub">This may take a few moments</p>
       </div>
 
       <!-- Results -->
-      <div id="results" style="display:none">
+      <div id="results" hidden>
 
         <!-- Score banner -->
         <div class="score-banner" id="score-banner">
           <div class="score-left">
-            <div class="score-circle" id="score-circle">
+            <div class="score-circle" id="score-circle" role="img" aria-labelledby="score-num score-label score-denom">
               <span class="score-num" id="score-num">—</span>
-              <span class="score-denom">/100</span>
+              <span class="score-denom" id="score-denom">/100</span>
             </div>
             <div class="score-info">
-              <p class="score-label">Compliance score</p>
+              <p class="score-label" id="score-label">Document readiness score</p>
               <p class="score-desc" id="score-desc">—</p>
             </div>
           </div>
           <div class="score-metrics" id="metrics"></div>
         </div>
+        <p class="score-disclaimer" id="score-disclaimer">Advisory only—not an official grade. Word-count estimates are guidance and do not affect this score.</p>
+        <section class="score-breakdown" id="score-breakdown" aria-label="Score breakdown" hidden></section>
 
         <!-- Feedback -->
         <div class="feedback-container" id="feedback"></div>
 
         <!-- Bottom actions -->
-        <div class="results-actions">
-          <button class="btn-ghost" onclick="goToStep2()">
+        <div class="results-actions" id="results-actions">
+          <button class="btn-ghost" type="button" onclick="goToStep2()">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
             Edit document
           </button>
-          <button class="btn-ghost" onclick="goToStep1()">Start over</button>
+          <button class="btn-ghost" type="button" onclick="startOver()">Start over</button>
         </div>
       </div>
     </section>
+
+      </section>
+
+      <section class="content-section supported-section" id="supported" aria-labelledby="supported-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Current coverage</p>
+            <h2 class="section-title" id="supported-title">Reports you can check today</h2>
+          </div>
+          <p class="section-description">Choose from the report templates currently available in the checker.</p>
+        </div>
+        <div class="supported-grid" id="supported-cards" aria-busy="true">
+          <div class="supported-skeleton" aria-hidden="true"></div>
+          <div class="supported-skeleton" aria-hidden="true"></div>
+          <div class="supported-skeleton" aria-hidden="true"></div>
+          <div class="supported-skeleton" aria-hidden="true"></div>
+        </div>
+        <p class="empty-state" id="supported-empty" role="status" hidden>Report types could not be loaded. Check the API connection and reload this page.</p>
+      </section>
+
+      <section class="content-section benefits-section" aria-labelledby="benefits-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">A useful review, not a rewrite</p>
+            <h2 class="section-title" id="benefits-title">See the work that matters next</h2>
+          </div>
+          <p class="section-description">The checker organizes feedback so you can make your own informed revisions.</p>
+        </div>
+        <div class="benefit-grid">
+          <article class="benefit-card">
+            <span class="benefit-number">01</span>
+            <h3>Find missing sections</h3>
+            <p>Compare your document with the selected report structure and review the sections that need attention.</p>
+            <ul><li>Required chapter and subsection checks</li><li>Chapter numbering and section guidance</li></ul>
+          </article>
+          <article class="benefit-card">
+            <span class="benefit-number">02</span>
+            <h3>Review academic writing</h3>
+            <p>See language and tone suggestions alongside context to help guide your own edits.</p>
+            <ul><li>Grammar, tone, and citation checks</li><li>Context and proposed improvements</li></ul>
+          </article>
+          <article class="benefit-card">
+            <span class="benefit-number">03</span>
+            <h3>Check document presentation</h3>
+            <p>For DOCX files, review detected formatting details against the available standards.</p>
+            <ul><li>Font, margins, spacing, and page size</li><li>PDF text extraction support</li></ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section process-section" id="how-it-works" aria-labelledby="process-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">A simple review flow</p>
+            <h2 class="section-title" id="process-title">From report to revision plan</h2>
+          </div>
+          <p class="section-description">The checker gives you a structured review without replacing your own judgment.</p>
+        </div>
+        <ol class="process-list">
+          <li class="process-step">
+            <span class="process-number">01</span>
+            <div><h3>Choose a report template</h3><p>Select the semester and document type that match your report.</p></div>
+          </li>
+          <li class="process-step">
+            <span class="process-number">02</span>
+            <div><h3>Upload or paste your work</h3><p>Add a PDF or DOCX file up to 10 MB, or paste at least 30 words of text.</p></div>
+          </li>
+          <li class="process-step">
+            <span class="process-number">03</span>
+            <div><h3>Review findings and decide</h3><p>Use the score breakdown and suggestions as a guide, then download a report if useful.</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="content-section scoring-section" id="scoring" aria-labelledby="scoring-title">
+        <div class="scoring-copy">
+          <p class="eyebrow">Understand the result</p>
+          <h2 class="section-title" id="scoring-title">A score with a clear breakdown</h2>
+          <p>The readiness score combines structure, language, and formatting checks. Word count is shown as guidance and does not add or remove points.</p>
+          <p class="scoring-note">Word count is guidance only. A detected proposal may cap the score at 20. The score is advisory and does not replace department review.</p>
+        </div>
+        <dl class="scoring-breakdown">
+          <div><dt>Structure &amp; completeness</dt><dd>50 <span>points</span></dd></div>
+          <div><dt>Academic language</dt><dd>35 <span>points</span></dd></div>
+          <div><dt>Formatting</dt><dd>15 <span>points</span></dd></div>
+          <div class="scoring-total"><dt>Total evaluation scale</dt><dd>100 <span>points</span></dd></div>
+        </dl>
+      </section>
+
+      <section class="content-section faq-section" id="faq" aria-labelledby="faq-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Before you begin</p>
+            <h2 class="section-title" id="faq-title">Frequently asked questions</h2>
+          </div>
+          <p class="section-description">A few details about supported files, feedback, and your results.</p>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Which report types are available?</summary>
+            <p>The checker loads its available report templates from the analysis service. Choose a type in the list above to see its required sections.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Which file formats can I submit?</summary>
+            <p>You can upload a PDF or DOCX file up to 10 MB, or paste text directly. DOCX is recommended when you want formatting checks.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Is the readiness score an official grade?</summary>
+            <p>No. It is an advisory score based on structure, language, and formatting checks. It is not a grade or a guarantee of acceptance.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Does word count affect the score?</summary>
+            <p>No. Word counts are estimates and are shown as guidance only. They are not included in the score.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Is my report saved in an account?</summary>
+            <p>This checker does not provide accounts or saved report history. Your document is sent to the configured analysis service to produce feedback. Avoid submitting sensitive personal information.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Should I rely only on the checker?</summary>
+            <p>No. Automated checks can miss context or flag text incorrectly. Review suggestions yourself and follow the latest instructions from your supervisor and department.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="final-cta-title">
+        <div>
+          <p class="eyebrow">Ready when you are</p>
+          <h2 id="final-cta-title">Give your next revision a clear starting point.</h2>
+          <p>Review the findings, choose what to address, and check your document again.</p>
+        </div>
+        <a class="btn-primary" href="#analyzer">Start a report check
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-topline">
+        <a class="footer-brand" href="#top">TU BCA Document Assistant</a>
+        <p>Independent academic support. Feedback is advisory and does not replace department guidance.</p>
+        <a class="back-to-top" href="#top">Back to top <span aria-hidden="true">↑</span></a>
+      </div>
+      <div class="footer-bottomline">
+        <span>© <span id="copyright-year"></span> TU BCA Document Assistant</span>
+        <nav aria-label="Footer navigation">
+          <a href="#supported">Report types</a>
+          <a href="#scoring">Scoring criteria</a>
+          <a href="#faq">Privacy and support</a>
+        </nav>
+      </div>
+    </footer>
 
   </div>
   <!-- /.app -->

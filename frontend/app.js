@@ -1,13 +1,43 @@
-const API = "http://127.0.0.1:8000/api";
+const API = (
+  window.DOC_ASSISTANT_API_URL ||
+  `${window.location.protocol}//${window.location.hostname}:8000/api`
+).replace(/\/+$/, "");
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const FEEDBACK_TYPES = new Set(["error", "warning", "success", "info"]);
 
 let selectedDocType = null;
 let templatesData = {};
 let selectedFile = null;
+let accordionCount = 0;
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => {
+    const entities = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
+
+function setMessage(id, message) {
+  const element = document.getElementById(id);
+  element.textContent = message;
+  element.hidden = !message;
+}
 
 // ─────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
+  initializePageNavigation();
+  initializeTaglineReveal();
+  document.getElementById("copyright-year").textContent = String(
+    new Date().getFullYear(),
+  );
   loadTemplates();
 
   document.getElementById("doc-text").addEventListener("input", function () {
@@ -15,15 +45,39 @@ document.addEventListener("DOMContentLoaded", () => {
       .trim()
       .split(/\s+/)
       .filter((x) => x).length;
-    document.getElementById("word-count").textContent =
-      `${words.toLocaleString()} words`;
+    const count = document.getElementById("word-count");
+    count.textContent = `${words.toLocaleString()} words`;
+    count.setAttribute("aria-label", `${words.toLocaleString()} words`);
+    setMessage("input-error", "");
+    if (this.value.trim() && selectedFile) {
+      clearSelectedFile();
+      setMessage(
+        "upload-status",
+        "The selected file was cleared because pasted text is now active.",
+      );
+    }
+    updateSelectedFileSummary();
   });
-  document
-    .getElementById("file-input")
-    .addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      if (file) processFile(file);
-    });
+  document.getElementById("file-input").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file) processFile(file);
+  });
+  document.getElementById("upload-area").addEventListener("click", () => {
+    document.getElementById("file-input").click();
+  });
+  document.getElementById("change-file-button").addEventListener("click", () => {
+    document.getElementById("file-input").click();
+  });
+  document.getElementById("paste-text-button").addEventListener("click", goToTextInput);
+  document.getElementById("doc-cards").addEventListener("click", (event) => {
+    const card = event.target.closest("[data-doc-type]");
+    if (card) selectDoc(card.dataset.docType);
+  });
+  document.getElementById("supported-cards").addEventListener("click", (event) => {
+    const card = event.target.closest("[data-doc-type]");
+    if (!card || !selectDoc(card.dataset.docType)) return;
+    goToStep2();
+  });
   // Drag & drop setup
   const uploadArea = document.getElementById("upload-area");
   if (uploadArea) {
@@ -43,18 +97,159 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+function initializePageNavigation() {
+  const toggle = document.getElementById("menu-toggle");
+  const menu = document.getElementById("mobile-nav");
+  toggle.addEventListener("click", () => {
+    const isOpen = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!isOpen));
+    toggle.setAttribute("aria-label", isOpen ? "Open navigation" : "Close navigation");
+    menu.hidden = isOpen;
+    document.body.classList.toggle("nav-open", !isOpen);
+    if (!isOpen) menu.querySelector("a")?.focus();
+  });
+  menu.addEventListener("click", (event) => {
+    if (event.target.closest("a")) closeMobileNavigation(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (toggle.getAttribute("aria-expanded") !== "true") return;
+    if (event.key === "Escape") {
+      closeMobileNavigation(true);
+      return;
+    }
+    if (event.key === "Tab") {
+      const links = [...menu.querySelectorAll("a")];
+      const firstLink = links[0];
+      const lastLink = links[links.length - 1];
+      if (event.shiftKey && document.activeElement === firstLink) {
+        event.preventDefault();
+        lastLink.focus();
+      } else if (!event.shiftKey && document.activeElement === lastLink) {
+        event.preventDefault();
+        firstLink.focus();
+      }
+    }
+  });
+
+  if (!("IntersectionObserver" in window)) return;
+  const navSections = ["analyzer", "supported", "how-it-works", "scoring", "faq"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+  let navObserver;
+  const observeNavigationSections = () => {
+    navObserver?.disconnect();
+    const triggerLine = Math.round(window.innerHeight * 0.5);
+    const bottomMargin = window.innerHeight - triggerLine - 1;
+    navObserver = new IntersectionObserver((entries) => {
+      const current = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (!current) {
+        document.querySelectorAll(".desktop-nav a, .mobile-nav a").forEach((link) => {
+          link.removeAttribute("aria-current");
+        });
+        return;
+      }
+      document.querySelectorAll(".desktop-nav a, .mobile-nav a").forEach((link) => {
+        if (link.hash === `#${current.target.id}`) {
+          link.setAttribute("aria-current", "location");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      });
+    }, { rootMargin: `-${triggerLine}px 0px -${bottomMargin}px 0px`, threshold: 0 });
+    navSections.forEach((section) => navObserver.observe(section));
+  };
+  observeNavigationSections();
+  window.addEventListener("resize", observeNavigationSections);
+}
+
+function closeMobileNavigation(returnFocus) {
+  const toggle = document.getElementById("menu-toggle");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-label", "Open navigation");
+  document.getElementById("mobile-nav").hidden = true;
+  document.body.classList.remove("nav-open");
+  if (returnFocus) toggle.focus();
+}
+
+function initializeTaglineReveal() {
+  const section = document.querySelector(".reveal-section");
+  const words = [...document.querySelectorAll(".tagline-word")];
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    section.classList.add("is-visible");
+    words.forEach((word) => word.classList.add("is-active"));
+    return;
+  }
+  if (!("IntersectionObserver" in window)) {
+    section.classList.add("is-visible");
+    words.forEach((word) => word.classList.add("is-active"));
+    return;
+  }
+
+  const sectionObserver = new IntersectionObserver((entries, observer) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    section.classList.add("is-visible");
+    observer.disconnect();
+  }, { threshold: 0.1 });
+  sectionObserver.observe(section);
+
+  const wordQueue = [];
+  let isRevealing = false;
+  const revealNextWord = () => {
+    const word = wordQueue.shift();
+    if (!word) {
+      isRevealing = false;
+      return;
+    }
+    word.classList.add("is-active");
+    window.setTimeout(revealNextWord, 55);
+  };
+  const wordObserver = new IntersectionObserver((entries, observer) => {
+    const visibleWords = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => words.indexOf(a.target) - words.indexOf(b.target));
+    visibleWords.forEach((entry) => {
+      wordQueue.push(entry.target);
+      observer.unobserve(entry.target);
+    });
+    if (!isRevealing && wordQueue.length) {
+      isRevealing = true;
+      revealNextWord();
+    }
+  }, { rootMargin: "0px 0px -35% 0px", threshold: 0 });
+  words.forEach((word) => wordObserver.observe(word));
+}
+
 // ─────────────────────────────────────────
 // TEMPLATES
 // ─────────────────────────────────────────
 async function loadTemplates() {
   try {
     const res = await fetch(`${API}/templates/`);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const data = await res.json();
     templatesData = data.templates;
+    if (!templatesData || typeof templatesData !== "object") {
+      throw new Error("The template response was invalid.");
+    }
     renderDocCards();
+    renderSupportedCards();
+    document.getElementById("template-count").textContent = String(
+      Object.keys(templatesData).length,
+    );
+    setMessage("template-status", "");
   } catch (e) {
-    document.getElementById("doc-cards").innerHTML =
-      '<p style="color:red;font-size:13px">Backend server chhaina. Django server start garnus: python manage.py runserver</p>';
+    const supportedCards = document.getElementById("supported-cards");
+    supportedCards.innerHTML = "";
+    supportedCards.setAttribute("aria-busy", "false");
+    document.getElementById("supported-empty").hidden = false;
+    document.getElementById("doc-cards").innerHTML = "";
+    document.getElementById("doc-cards").setAttribute("aria-busy", "false");
+    setMessage(
+      "template-status",
+      "Could not load document types. Check the API connection and try again.",
+    );
   }
 }
 
@@ -69,106 +264,218 @@ function renderDocCards() {
 
   grid.innerHTML = Object.entries(templatesData)
     .map(
-      ([key, tmpl]) => `
-    <div class="doc-card" onclick="selectDoc('${key}', this)">
-      <div class="sem">${semLabels[key] || tmpl.semester + " Semester"}</div>
-      <div class="name">${tmpl.name.split("—")[0].split("(")[0].trim()}</div>
-      <div class="code">${tmpl.code}</div>
-    </div>
-  `,
+      ([key, tmpl], index) => {
+        const sections = Number(tmpl.total_required_sections);
+        const chapters = Array.isArray(tmpl.chapters) ? tmpl.chapters.length : 0;
+        return `
+          <button type="button" class="doc-card${key === selectedDocType ? " selected" : ""}" data-doc-type="${escapeHTML(key)}" aria-pressed="${key === selectedDocType}">
+            <span class="doc-card-topline">
+              <span class="sem">${escapeHTML(semLabels[key] || `${tmpl.semester} Semester`)}</span>
+              <span class="doc-card-position">0${index + 1}</span>
+            </span>
+            <span class="name">${escapeHTML(tmpl.name.split("—")[0].split("(")[0].trim())}</span>
+            <span class="code">${escapeHTML(tmpl.code)}</span>
+            <span class="doc-card-description">${escapeHTML(getTemplateDescription(key))}</span>
+            <span class="doc-card-meta">${Number.isFinite(sections) ? `${escapeHTML(sections)} required sections` : `${escapeHTML(chapters)} chapters in template`}</span>
+          </button>
+        `;
+      },
     )
+    .join("");
+  grid.setAttribute("aria-busy", "false");
+}
+
+function renderSupportedCards() {
+  const container = document.getElementById("supported-cards");
+  const emptyState = document.getElementById("supported-empty");
+  const semLabels = {
+    project_1: "4th Semester",
+    project_2: "6th Semester",
+    internship: "7th Semester",
+    project_3: "8th Semester",
+  };
+  const templateDescriptions = {
+    project_1:
+      "Review introductory chapters, system analysis, design, implementation, and testing.",
+    project_2:
+      "Review development methodology, system design, implementation, and testing.",
+    internship:
+      "Review organization details, internship activities, weekly logs, and learning outcomes.",
+    project_3:
+      "Review the required chapters and academic checks for your final semester project.",
+  };
+  const entries = Object.entries(templatesData);
+  container.setAttribute("aria-busy", "false");
+  emptyState.hidden = entries.length > 0;
+  container.innerHTML = entries
+    .map(([key, tmpl], index) => {
+      const name = tmpl.name.split("—")[0].split("(")[0].trim();
+      const semester = semLabels[key] || `${tmpl.semester} Semester`;
+      const sections = Number(tmpl.total_required_sections);
+      return `
+        <button type="button" class="supported-card" data-doc-type="${escapeHTML(key)}" aria-label="Select ${escapeHTML(name)}, ${escapeHTML(semester)}">
+          <span class="supported-card-topline">
+          <span class="supported-semester">${escapeHTML(semester)}</span>
+            <span class="supported-card-position">0${index + 1}</span>
+          </span>
+          <span class="supported-name">${escapeHTML(name)}</span>
+          <span class="supported-code">${escapeHTML(tmpl.code)}</span>
+          <span class="supported-description">${escapeHTML(templateDescriptions[key] || "Review the required sections and academic checks for this report type.")}</span>
+          <span class="supported-action">${Number.isFinite(sections) ? `${escapeHTML(sections)} required sections` : "View report checks"} <span aria-hidden="true">→</span></span>
+        </button>`;
+    })
     .join("");
 }
 
-function selectDoc(key, el) {
-  document
-    .querySelectorAll(".doc-card")
-    .forEach((c) => c.classList.remove("selected"));
-  el.classList.add("selected");
+function getTemplateDescription(key) {
+  const descriptions = {
+    project_1: "System analysis, design, implementation, and testing.",
+    project_2: "Development methodology, system design, and testing.",
+    internship: "Organization, internship activities, and learning outcomes.",
+    project_3: "Required sections for the final semester project.",
+  };
+  return descriptions[key] || "Required sections and academic checks for this report.";
+}
+
+function selectDoc(key) {
+  if (!Object.hasOwn(templatesData, key)) return false;
+  document.querySelectorAll(".doc-card").forEach((card) => {
+    const isSelected = card.dataset.docType === key;
+    card.classList.toggle("selected", isSelected);
+    card.setAttribute("aria-pressed", String(isSelected));
+  });
   selectedDocType = key;
   document.getElementById("step1-next").disabled = false;
+  setMessage("template-status", "");
+  return true;
 }
 
 // ─────────────────────────────────────────
 // FILE UPLOAD
 // ─────────────────────────────────────────
 function processFile(file) {
-  const ext = file.name.toLowerCase();
-  if (!ext.endsWith(".pdf") && !ext.endsWith(".docx")) {
-    alert("PDF vaa DOCX matra supported xa.");
+  document.getElementById("file-input").value = "";
+  const extension = file.name.toLowerCase().split(".").pop();
+  if (extension !== "pdf" && extension !== "docx") {
+    setMessage("upload-status", "Choose a PDF or DOCX file.");
     return;
   }
-  if (file.size > 10 * 1024 * 1024) {
-    alert("10MB bhandaa thulo xa.");
+  if (file.size > MAX_UPLOAD_BYTES) {
+    setMessage("upload-status", "The file exceeds the 10 MB limit.");
     return;
   }
   selectedFile = file;
   const area = document.getElementById("upload-area");
   area.classList.add("file-selected");
   document.getElementById("upload-content").innerHTML = `
-    <div class="upload-icon-wrap" style="background:#EAF3E8">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <path d="M5 14l6 6L23 8" stroke="#2D6A2D" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <p class="upload-title" style="color:#2D6A2D">
-      ${ext.endsWith(".pdf") ? "📕" : "📘"} ${file.name}
-    </p>
-    <p class="upload-hint">${(file.size / 1024).toFixed(0)} KB · Click to change</p>
-    <span class="upload-btn-label" style="border-color:#2D6A2D;color:#2D6A2D">Change file</span>`;
-  document.getElementById("doc-text").value = "";
-  document.getElementById("word-count").textContent = "0 words";
+    <span class="selected-file-check" aria-hidden="true">✓</span>
+    <span class="upload-title">${escapeHTML(file.name)}</span>
+    <span class="upload-btn-label">Change file</span>`;
+  clearText();
+  updateSelectedFileSummary();
+  setMessage("upload-status", "File selected. Choose the button again to change it.");
+  setMessage("input-error", "");
+}
+
+function clearText() {
+  const text = document.getElementById("doc-text");
+  text.value = "";
+  const count = document.getElementById("word-count");
+  count.textContent = "0 words";
+  count.setAttribute("aria-label", "0 words");
+}
+
+function renderUploadPrompt() {
+  document.getElementById("upload-area").classList.remove("file-selected", "drag-over");
+  document.getElementById("upload-content").innerHTML = `
+    <span class="upload-title">Choose a file or drop it here</span>
+    <span class="upload-btn-label">Browse files</span>`;
+}
+
+function clearSelectedFile() {
+  selectedFile = null;
+  document.getElementById("file-input").value = "";
+  renderUploadPrompt();
+  updateSelectedFileSummary();
+}
+
+function updateSelectedFileSummary() {
+  const name = document.getElementById("selected-file-name");
+  const detail = document.getElementById("selected-file-detail");
+  const action = document.getElementById("change-file-button");
+  const summary = document.getElementById("selected-file-summary");
+  if (!name || !detail || !action || !summary) return;
+
+  if (selectedFile) {
+    name.textContent = selectedFile.name;
+    detail.textContent = `${(selectedFile.size / 1024).toFixed(0)} KB · Ready for analysis`;
+    action.textContent = "Change file";
+    summary.classList.add("has-file");
+  } else {
+    name.textContent = "No file selected";
+    detail.textContent = "You can paste report text below instead.";
+    action.textContent = "Choose file";
+    summary.classList.remove("has-file");
+  }
 }
 
 // ─────────────────────────────────────────
 // STEP NAVIGATION
 // ─────────────────────────────────────────
-function setStep(n) {
-  document.getElementById("progress-fill").style.width =
-    n === 1 ? "33%" : n === 2 ? "66%" : "100%";
+function setStep(n, { focus = true } = {}) {
+  document.getElementById("progress-fill").style.transform =
+    `scaleX(${n === 1 ? 1 / 3 : n === 2 ? 2 / 3 : 1})`;
+  document
+    .querySelector(".progress-track")
+    .setAttribute("aria-valuenow", String(n));
 
   [1, 2, 3].forEach((i) => {
     const item = document.getElementById(`step${i}-dot`);
-    const numEl = item.querySelector(".step-num");
     item.classList.remove("active", "done");
+    item.removeAttribute("aria-current");
+    const numEl = item.querySelector(".step-num");
     if (i < n) {
       item.classList.add("done");
       numEl.textContent = "✓";
     } else if (i === n) {
       item.classList.add("active");
+      item.setAttribute("aria-current", "step");
       numEl.textContent = String(i).padStart(2, "0");
     } else numEl.textContent = String(i).padStart(2, "0");
   });
 
   [1, 2, 3].forEach((i) => {
-    document.getElementById(`step${i}`).style.display =
-      i === n ? "block" : "none";
+    document.getElementById(`step${i}`).hidden = i !== n;
   });
+  document.getElementById("step-announcement").textContent =
+    `Step ${n} of 3: ${["Select document type", "Add your document", "Analysis results"][n - 1]}`;
+  if (focus) document.getElementById(`step${n}-title`).focus();
 }
 
 function goToStep1() {
-  selectedFile = null;
-  const fi = document.getElementById("file-input");
-  if (fi) fi.value = "";
-  const area = document.getElementById("upload-area");
-  if (area) {
-    area.classList.remove("file-selected", "drag-over");
-    document.getElementById("upload-content").innerHTML = `
-      <div class="upload-icon-wrap">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-          <rect x="4" y="4" width="24" height="24" rx="4" stroke="#C4884A"
-                stroke-width="1.5" stroke-dasharray="4 3"/>
-          <path d="M16 20v-8M12 16l4-4 4 4" stroke="#C4884A" stroke-width="1.5"
-                stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <p class="upload-title">Drop your file here</p>
-      <p class="upload-hint">PDF or DOCX · Max 10MB</p>
-      <span class="upload-btn-label">Browse files</span>`;
+  setStep(1);
+}
+
+function startOver() {
+  const hasDraft =
+    Boolean(selectedFile) || Boolean(document.getElementById("doc-text").value.trim());
+  if (hasDraft && !window.confirm("Start over and discard your current document?")) {
+    return;
   }
-  document.getElementById("doc-text").value = "";
-  document.getElementById("word-count").textContent = "0 words";
+  selectedDocType = null;
+  clearSelectedFile();
+  clearText();
+  document.querySelectorAll(".doc-card").forEach((card) => {
+    card.classList.remove("selected");
+    card.setAttribute("aria-pressed", "false");
+  });
+  document.getElementById("step1-next").disabled = true;
+  document.getElementById("results-actions").innerHTML = `
+    <button class="btn-ghost" type="button" onclick="goToStep2()">Edit document</button>
+    <button class="btn-ghost" type="button" onclick="startOver()">Start over</button>`;
+  document.getElementById("score-banner").hidden = false;
+  setMessage("upload-status", "");
+  setMessage("input-error", "");
   setStep(1);
 }
 
@@ -184,12 +491,28 @@ function goToStep2() {
 
   fetch(`${API}/templates/${selectedDocType}/`)
     .then((res) => res.json())
-    .then((data) =>
-      renderSectionList(data.required_sections, data.optional_sections),
-    )
-    .catch((e) => console.error(e));
+    .then((data) => {
+      if (!data || !Array.isArray(data.required_sections)) {
+        throw new Error("Template sections are unavailable.");
+      }
+      renderSectionList(data.required_sections, data.optional_sections || []);
+    })
+    .catch(() => {
+      document.getElementById("section-list").textContent =
+        "Could not load required sections. Check the API connection and try again.";
+    });
 
   setStep(2);
+}
+
+function goToTextInput() {
+  if (!selectedDocType) {
+    setMessage("template-status", "Choose a report type before adding your document.");
+    document.querySelector("#doc-cards [data-doc-type]")?.focus();
+    return;
+  }
+  goToStep2();
+  document.getElementById("doc-text").focus();
 }
 
 function renderSectionList(required, optional) {
@@ -203,7 +526,7 @@ function renderSectionList(required, optional) {
       (s, i) => `
     <div class="section-item">
       <span class="num">${i + 1}.</span>
-      <span>${capitalize(s.name)}</span>
+      <span>${escapeHTML(capitalize(s.name))}</span>
       ${s.opt ? '<span class="opt">optional</span>' : ""}
     </div>
   `,
@@ -214,38 +537,34 @@ function renderSectionList(required, optional) {
 // ─────────────────────────────────────────
 // ANALYZE
 // ─────────────────────────────────────────
-const loadMsgs = [
-  "Checking document structure...",
-  "Verifying TU FOHSS sections...",
-  "Analyzing academic language...",
-  "Checking IEEE referencing...",
-  "Calculating compliance score...",
-];
-
 async function analyze() {
   const text = document.getElementById("doc-text").value.trim();
   const hasFile = selectedFile !== null;
   const hasText = text.split(/\s+/).filter((x) => x).length >= 30;
 
   if (!hasFile && !hasText) {
-    alert("File upload garnus vaa document text (min 30 words) paste garnus.");
+    setMessage(
+      "input-error",
+      "Choose a PDF or DOCX file, or paste at least 30 words of document text.",
+    );
+    document.getElementById("input-error").focus();
     return;
   }
 
-  setStep(3);
-  document.getElementById("loading").style.display = "flex";
-  document.getElementById("results").style.display = "none";
+  setMessage("input-error", "");
+  const analyzeButton = document.getElementById("analyze-button");
+  analyzeButton.disabled = true;
+  analyzeButton.setAttribute("aria-busy", "true");
+  document.getElementById("step3").setAttribute("aria-busy", "true");
+  document.getElementById("results-actions").hidden = true;
+  setStep(3, { focus: false });
+  document.getElementById("loading").hidden = false;
+  document.getElementById("results").hidden = true;
+  document.getElementById("score-banner").hidden = false;
+  document.getElementById("loading").focus();
 
-  let msgIdx = 0;
-  const msgEl = document.getElementById("load-msg");
-  const msgTimer = setInterval(() => {
-    msgIdx = (msgIdx + 1) % loadMsgs.length;
-    msgEl.textContent = loadMsgs[msgIdx];
-  }, 1500);
-
-  // Timeout controller
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000); // 90 sec
+  const timeout = setTimeout(() => controller.abort(), 90000);
 
   try {
     let res;
@@ -268,27 +587,45 @@ async function analyze() {
       });
     }
 
-    clearTimeout(timeout);
-    clearInterval(msgTimer);
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("The server returned an unreadable response.");
+    }
 
-    const data = await res.json();
+    if (!res.ok) {
+      showError(data.error || `Analysis failed (HTTP ${res.status}).`);
+      return;
+    }
 
     if (data.error) {
-      showError("Server error: " + data.error);
+      showError(data.error);
+      return;
+    }
+
+    if (
+      !data.structure ||
+      !Number.isFinite(Number(data.score)) ||
+      !Number.isFinite(Number(data.structure.sections_found)) ||
+      !Number.isFinite(Number(data.structure.total_required))
+    ) {
+      showError("The analysis service returned incomplete results. Please try again.");
       return;
     }
 
     renderResults(data);
+    document.getElementById("results-actions").hidden = false;
 
-    document.querySelector(".results-actions").innerHTML = `
-      <button class="btn-ghost" onclick="goToStep2()">
+    document.getElementById("results-actions").innerHTML = `
+      <button class="btn-ghost" type="button" onclick="goToStep2()">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M11 7H3M7 3L3 7l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
         Edit document
       </button>
-      <button class="btn-ghost" onclick="goToStep1()">Start over</button>
-      <button class="btn-primary" onclick="downloadReport()" style="margin-left:auto">
+      <button class="btn-ghost" type="button" onclick="startOver()">Start over</button>
+      <button class="btn-primary download-action" type="button" onclick="downloadReport()">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
           <path d="M7 1v8M4 10l3 3 3-3M1 10v2a1 1 0 001 1h10a1 1 0 001-1v-2"
                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -296,14 +633,19 @@ async function analyze() {
         Download Report
       </button>`;
 
-  } catch (e) {
-    clearTimeout(timeout);
-    clearInterval(msgTimer);
-    if (e.name === "AbortError") {
+  } catch (error) {
+    if (error.name === "AbortError") {
       showError("Analysis took too long (90s). Try with a smaller file or use plain text.");
+    } else if (error instanceof TypeError) {
+      showError("Could not reach the analysis service. Check the API connection and try again.");
     } else {
-      showError("Backend connect huna sakena. Django server chalidai xa ki check garnus.");
+      showError(error.message || "The analysis could not be completed. Please try again.");
     }
+  } finally {
+    clearTimeout(timeout);
+    analyzeButton.disabled = false;
+    analyzeButton.removeAttribute("aria-busy");
+    document.getElementById("step3").removeAttribute("aria-busy");
   }
 }
 
@@ -311,10 +653,15 @@ async function analyze() {
 // RENDER RESULTS
 // ─────────────────────────────────────────
 function renderResults(data) {
-  document.getElementById("loading").style.display = "none";
-  document.getElementById("results").style.display = "block";
+  document.getElementById("loading").hidden = true;
+  document.getElementById("results").hidden = false;
+  document.getElementById("results-actions").hidden = false;
+  document.getElementById("result-announcement").textContent =
+    `Analysis complete. Document readiness score: ${data.score} out of 100.`;
+  document.getElementById("step3-title").focus();
+  accordionCount = 0;
 
-  const score = data.score;
+  const score = Number(data.score);
   const scoreClass = score >= 75 ? "good" : score >= 50 ? "ok" : "bad";
   const scoreDesc =
     score >= 75
@@ -324,7 +671,7 @@ function renderResults(data) {
         : "Significant issues found";
 
   // Progress bar update
-  document.getElementById("progress-fill").style.width = "100%";
+  document.getElementById("progress-fill").style.transform = "scaleX(1)";
 
   // Score circle
   document.getElementById("score-num").textContent = score;
@@ -335,27 +682,46 @@ function renderResults(data) {
   // Metrics
   document.getElementById("metrics").innerHTML = `
     <div class="metric-card">
-      <div class="metric-val">${data.structure.sections_found}/${data.structure.total_required}</div>
+      <div class="metric-val">${escapeHTML(data.structure.sections_found)}/${escapeHTML(data.structure.total_required)}</div>
       <div class="metric-lbl">Sections<br>detected</div>
     </div>
     <div class="metric-card">
-      <div class="metric-val">${(data.total_words || 0).toLocaleString()}</div>
+      <div class="metric-val">${escapeHTML(Number(data.total_words || 0).toLocaleString())}</div>
       <div class="metric-lbl">Total<br>words</div>
     </div>
     <div class="metric-card">
-      <div class="metric-val ${data.total_issues > 5 ? "bad" : data.total_issues > 2 ? "ok" : "good"}">${data.total_issues}</div>
-      <div class="metric-lbl">Issues<br>found</div>
+      <div class="metric-val ${data.total_issues > 5 ? "bad" : data.total_issues > 2 ? "ok" : "good"}">${escapeHTML(data.total_issues ?? 0)}</div>
+      <div class="metric-lbl">Actionable<br>findings</div>
     </div>
     ${
       data.group_info?.member_count
         ? `
     <div class="metric-card">
-      <div class="metric-val">${data.group_info.member_count}</div>
+      <div class="metric-val">${escapeHTML(data.group_info.member_count)}</div>
       <div class="metric-lbl">Member(s)<br>detected</div>
     </div>`
         : ""
     }
   `;
+  const breakdown = data.score_breakdown || {};
+  const breakdownItems = [
+    ["Structure", breakdown.structure],
+    ["Language", breakdown.language],
+    ["Formatting", breakdown.formatting],
+  ].filter(([, item]) => item && Number.isFinite(item.score) && Number.isFinite(item.max));
+  document.getElementById("score-breakdown").innerHTML = breakdownItems.length
+    ? `<h3>Score breakdown</h3><dl>${breakdownItems
+        .map(
+          ([label, item]) =>
+            `<div class="score-breakdown-item"><dt>${label}</dt><dd>${escapeHTML(item.score)} / ${escapeHTML(item.max)}</dd></div>`,
+        )
+        .join("")}</dl>${
+        breakdown.proposal_cap
+          ? `<p class="score-breakdown-note">The overall score is capped at ${escapeHTML(breakdown.proposal_cap)} when a proposal is detected.</p>`
+          : ""
+      }`
+    : "";
+  document.getElementById("score-breakdown").hidden = breakdownItems.length === 0;
 
   const fb = document.getElementById("feedback");
   fb.innerHTML = "";
@@ -363,7 +729,10 @@ function renderResults(data) {
   if (data.numbering_issues?.length > 0) {
     const hasError = data.numbering_issues.some((n) => n.type === "error");
     const items = data.numbering_issues
-      .map((n) => `<div class="fb-item ${n.type}">${n.message}</div>`)
+      .map(
+        (n) =>
+          `<div class="fb-item ${FEEDBACK_TYPES.has(n.type) ? n.type : "info"}">${escapeHTML(n.message)}</div>`,
+      )
       .join("");
     fb.innerHTML += buildSection(
       "🚨 Document Type Check",
@@ -388,15 +757,15 @@ function renderResults(data) {
     let html = "";
     if (g.member_count) {
       html += `<div class="fb-item ${g.member_count > 2 ? "error" : "success"}">
-        👥 <strong>${g.member_count} member(s) detected</strong>
-        ${g.member_names?.length ? ` — ${g.member_names.join(", ")}` : ""}
-        ${g.roll_nos?.length ? `<br><span style="font-size:11px;opacity:.7">Roll: ${g.roll_nos.join(", ")}</span>` : ""}
+        👥 <strong>${escapeHTML(g.member_count)} member(s) detected</strong>
+        ${g.member_names?.length ? ` — ${g.member_names.map(escapeHTML).join(", ")}` : ""}
+        ${g.roll_nos?.length ? `<br><span class="member-rolls">Roll: ${g.roll_nos.map(escapeHTML).join(", ")}</span>` : ""}
       </div>`;
     }
     g.feedback.forEach((f) => {
-      html += `<div class="fb-item ${f.type}">
+      html += `<div class="fb-item ${FEEDBACK_TYPES.has(f.type) ? f.type : "info"}">
         ${f.type === "error" ? "❌" : f.type === "warning" ? "⚠️" : f.type === "success" ? "✅" : "ℹ️"}
-        ${f.message}
+        ${escapeHTML(f.message)}
       </div>`;
     });
     fb.innerHTML += buildSection(
@@ -414,23 +783,24 @@ function renderResults(data) {
   if (data.section_guides?.length > 0) {
     let html = "";
     data.section_guides.forEach((guide) => {
+      const panelId = nextAccordionId();
       html += `
         <div class="fb-item error expandable">
-          <div class="fb-item-header" onclick="toggleExpand(this)">
-            <span>❌ <strong>${guide.section}</strong> — Missing</span>
+          <button type="button" class="fb-item-header" aria-expanded="false" aria-controls="${panelId}" onclick="toggleExpand(this)">
+            <span>❌ <strong>${escapeHTML(guide.section)}</strong> — Missing</span>
             <span class="expand-btn">▼ How to fix</span>
-          </div>
-          <div class="fb-expand-content" style="display:none">
+          </button>
+          <div class="fb-expand-content" id="${panelId}" hidden>
             <p class="fb-label">📝 This section must contain:</p>
             <ul class="fix-list">
-              ${guide.must_contain.map((c) => `<li>${c}</li>`).join("")}
+              ${guide.must_contain.map((c) => `<li>${escapeHTML(c)}</li>`).join("")}
             </ul>
-            ${guide.word_limit ? `<p class="fb-meta">📏 Suggested: <strong>${guide.word_limit}</strong></p>` : ""}
-            ${guide.tip ? `<p class="fb-tip">💡 ${guide.tip}</p>` : ""}
+            ${guide.word_limit ? `<p class="fb-meta">📏 Suggested: <strong>${escapeHTML(guide.word_limit)}</strong></p>` : ""}
+            ${guide.tip ? `<p class="fb-tip">💡 ${escapeHTML(guide.tip)}</p>` : ""}
             ${
               guide.template
                 ? `<p class="fb-label" style="margin-top:.5rem">✏️ Template:</p>
-              <div class="code-block">${guide.template}</div>`
+              <div class="code-block">${escapeHTML(guide.template)}</div>`
                 : ""
             }
           </div>
@@ -454,7 +824,7 @@ function renderResults(data) {
     const items = data.structure.subsection_issues
       .map(
         (s) =>
-          `<div class="fb-item warning">⚠️ Missing: <strong>${s}</strong></div>`,
+            `<div class="fb-item warning">⚠️ Missing: <strong>${escapeHTML(s)}</strong></div>`,
       )
       .join("");
     fb.innerHTML += buildSection("📑 Chapter Sub-sections", "warning", items);
@@ -466,9 +836,9 @@ function renderResults(data) {
       <p class="fb-label" style="margin:.6rem 0 .4rem">🔄 Specific corrections:</p>`;
     data.passive_fixes.forEach((fix) => {
       html += `<div class="fix-card">
-        <div class="fix-original">❌ "${fix.sentence || fix.original}"</div>
+        <div class="fix-original">❌ "${escapeHTML(fix.sentence || fix.original)}"</div>
         <div class="fix-arrow">↓ Suggested fix</div>
-        <div class="fix-suggested">✅ "${fix.suggested}"</div>
+        <div class="fix-suggested">✅ "${escapeHTML(fix.suggested)}"</div>
       </div>`;
     });
     fb.innerHTML += buildSection(
@@ -487,9 +857,9 @@ function renderResults(data) {
       html += `<p class="fb-label" style="margin-bottom:.4rem">🔴 Significant issues:</p>`;
       high.forEach((g) => {
         html += `<div class="fix-card">
-          <div class="fix-original">❌ ${g.context}</div>
-          <div class="fix-arrow">↓ ${g.message}</div>
-          ${g.suggestion ? `<div class="fix-suggested">✅ "${g.suggestion}"</div>` : ""}
+            <div class="fix-original">❌ ${escapeHTML(g.context)}</div>
+            <div class="fix-arrow">↓ ${escapeHTML(g.message)}</div>
+            ${g.suggestion ? `<div class="fix-suggested">✅ "${escapeHTML(g.suggestion)}"</div>` : ""}
         </div>`;
       });
     }
@@ -497,9 +867,9 @@ function renderResults(data) {
       html += `<p class="fb-label" style="margin:.6rem 0 .4rem">🟡 Minor suggestions:</p>`;
       normal.forEach((g) => {
         html += `<div class="fb-item warning" style="margin-bottom:4px">
-          ⚠️ ${g.message}
-          ${g.suggestion ? ` → <strong>"${g.suggestion}"</strong>` : ""}
-          <br><span style="font-size:11px;font-style:italic;opacity:.8">${g.context}</span>
+          ⚠️ ${escapeHTML(g.message)}
+          ${g.suggestion ? ` → <strong>"${escapeHTML(g.suggestion)}"</strong>` : ""}
+          <br><span class="grammar-context">${escapeHTML(g.context)}</span>
         </div>`;
       });
     }
@@ -515,9 +885,9 @@ function renderResults(data) {
     const items = data.academic_tone
       .map(
         (f) => `
-      <div class="fb-item ${f.type}">
+      <div class="fb-item ${FEEDBACK_TYPES.has(f.type) ? f.type : "info"}">
         ${f.type === "error" ? "❌" : f.type === "warning" ? "⚠️" : f.type === "success" ? "✅" : "ℹ️"}
-        ${f.message}
+        ${escapeHTML(f.message)}
       </div>`,
       )
       .join("");
@@ -538,9 +908,9 @@ function renderResults(data) {
             .map(
               (f) => `
             <tr>
-              <td class="word-bad">"${f.word}"${f.count > 1 ? ` ×${f.count}` : ""}</td>
-              <td class="word-good">${f.replace_with}</td>
-              <td class="word-context">${f.context}</td>
+              <td class="word-bad">"${escapeHTML(f.word)}"${f.count > 1 ? ` ×${escapeHTML(f.count)}` : ""}</td>
+              <td class="word-good">${escapeHTML(f.replace_with)}</td>
+              <td class="word-context">${escapeHTML(f.context)}</td>
             </tr>`,
             )
             .join("")}
@@ -563,23 +933,24 @@ function renderResults(data) {
       }
     </div>`;
     wcInfo.forEach((w) => {
+      const panelId = nextAccordionId();
       html += `<div class="fb-item info expandable">
-        <div class="fb-item-header" onclick="toggleExpand(this)">
-          <span>ℹ️ ${w.message}</span>
+        <button type="button" class="fb-item-header" aria-expanded="false" aria-controls="${panelId}" onclick="toggleExpand(this)">
+          <span>ℹ️ ${escapeHTML(w.message)}</span>
           ${w.how_to_fix ? `<span class="expand-btn">▼ Suggestions</span>` : ""}
-        </div>
+        </button>
         ${
           w.how_to_fix
-            ? `<div class="fb-expand-content" style="display:none">
-          <ul class="fix-list">${w.how_to_fix.map((h) => `<li>${h}</li>`).join("")}</ul>
-          ${w.tip ? `<p class="fb-tip">💡 ${w.tip}</p>` : ""}
+            ? `<div class="fb-expand-content" id="${panelId}" hidden>
+          <ul class="fix-list">${w.how_to_fix.map((h) => `<li>${escapeHTML(h)}</li>`).join("")}</ul>
+          ${w.tip ? `<p class="fb-tip">💡 ${escapeHTML(w.tip)}</p>` : ""}
         </div>`
             : ""
         }
       </div>`;
     });
     wcSuccess.forEach((w) => {
-      html += `<div class="fb-item success">✅ ${w.message}</div>`;
+      html += `<div class="fb-item success">✅ ${escapeHTML(w.message)}</div>`;
     });
     fb.innerHTML += buildSection(
       "📏 Word Count",
@@ -593,9 +964,9 @@ function renderResults(data) {
     const items = data.formatting
       .map(
         (f) => `
-      <div class="fb-item ${f.type}">
+      <div class="fb-item ${FEEDBACK_TYPES.has(f.type) ? f.type : "info"}">
         ${f.type === "error" ? "❌" : f.type === "warning" ? "⚠️" : f.type === "success" ? "✅" : "ℹ️"}
-        ${f.message}
+        ${escapeHTML(f.message)}
       </div>`,
       )
       .join("");
@@ -611,10 +982,10 @@ function renderResults(data) {
     "ℹ️ Analysis Info",
     "info",
     `
-        <div class="fb-item info">
-          <strong>Template:</strong> ${data.template_name} ·
-          <strong>Code:</strong> ${data.course_code} ·
-          <strong>File:</strong> ${(data.file_type || "text").toUpperCase()} ·
+        <div class="fb-item info analysis-meta">
+          <strong>Template:</strong> ${escapeHTML(data.template_name)} ·
+          <strong>Code:</strong> ${escapeHTML(data.course_code)} ·
+          <strong>File:</strong> ${escapeHTML((data.file_type || "text").toUpperCase())} ·
           <strong>Referencing:</strong> ${data.doc_type === "internship" ? "APA" : "IEEE"}
         </div>`,
   );
@@ -624,20 +995,24 @@ function renderResults(data) {
 // HELPERS
 // ─────────────────────────────────────────
 function showError(msg) {
-  clearInterval(0); // safety
-  document.getElementById("loading").style.display = "none";
-  document.getElementById("results").style.display = "block";
-  document.getElementById("score-banner").style.display = "none";
+  document.getElementById("loading").hidden = true;
+  document.getElementById("results").hidden = false;
+  document.getElementById("score-banner").hidden = true;
+  document.getElementById("score-breakdown").hidden = true;
+  document.getElementById("results-actions").hidden = true;
+  document.getElementById("result-announcement").textContent =
+    "Analysis could not be completed.";
   document.getElementById("feedback").innerHTML = `
     <div class="fb-section">
       <div class="fb-section-body">
-        <div class="fb-item error">❌ ${msg}</div>
+        <div class="fb-item error" role="alert" tabindex="-1" id="analysis-error">❌ ${escapeHTML(msg)}</div>
         <div style="margin-top:.75rem;display:flex;gap:8px">
-          <button class="btn-ghost" onclick="goToStep2()">← Try again</button>
-          <button class="btn-ghost" onclick="goToStep1()">Start over</button>
+          <button class="btn-ghost" type="button" onclick="goToStep2()">← Try again</button>
+          <button class="btn-ghost" type="button" onclick="startOver()">Start over</button>
         </div>
       </div>
     </div>`;
+  document.getElementById("analysis-error").focus();
 }
 
 function icon(type) {
@@ -660,8 +1035,8 @@ function buildSection(title, badgeType, content) {
   return `
     <div class="fb-section">
       <div class="fb-section-header">
-        <span class="fb-section-title">${title}</span>
-        <span class="fb-badge ${badgeType}">${badgeText[badgeType] || badgeType}</span>
+        <span class="fb-section-title">${escapeHTML(title)}</span>
+        <span class="fb-badge ${FEEDBACK_TYPES.has(badgeType) ? badgeType : "info"}">${badgeText[badgeType] || "Info"}</span>
       </div>
       <div class="fb-section-body">${content}</div>
     </div>`;
@@ -677,17 +1052,19 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function nextAccordionId() {
+  accordionCount += 1;
+  return `feedback-panel-${accordionCount}`;
+}
+
 function toggleExpand(header) {
-  const content = header.nextElementSibling;
+  const content = document.getElementById(header.getAttribute("aria-controls"));
   if (!content) return;
   const btn = header.querySelector(".expand-btn");
-  if (content.style.display === "none") {
-    content.style.display = "block";
-    if (btn) btn.textContent = "▲ Hide";
-  } else {
-    content.style.display = "none";
-    if (btn) btn.textContent = "▼ How to fix";
-  }
+  const isExpanded = header.getAttribute("aria-expanded") === "true";
+  header.setAttribute("aria-expanded", String(!isExpanded));
+  content.hidden = isExpanded;
+  if (btn) btn.textContent = isExpanded ? "▼ How to fix" : "▲ Hide";
 }
 
 function downloadReport() {
@@ -820,7 +1197,7 @@ function downloadReport() {
     .fb-item-header { display: block; }
     .fb-tip {
       background: #F5E8D6;
-      border-left: 3px solid #C4884A;
+      border-left: 3px solid #80521F;
       padding: 6px 10px;
       border-radius: 0 6px 6px 0;
       font-size: 11px;

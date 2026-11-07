@@ -115,7 +115,7 @@ Create `backend/.env` with the following:
 SECRET_KEY=your-secret-key-here
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
-CORS_ALLOW_ALL_ORIGINS=True
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 Generate a secret key:
@@ -148,6 +148,10 @@ Open browser: `http://localhost:3000`
 > Java must be installed for LanguageTool to work.
 > DOCX upload recommended over PDF for accurate formatting analysis.
 
+The frontend defaults to the API at `http(s)://<current-host>:8000/api`. For deployments where the API has a different URL, define `window.DOC_ASSISTANT_API_URL` before `app.js` loads. Set `CORS_ALLOWED_ORIGINS` to the exact frontend origins; do not enable wildcard CORS in production. Uploaded documents are limited to 10 MB and are not retained as document history by this application.
+
+For production, set `DEBUG=False`, provide a strong `SECRET_KEY`, and set `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` to the deployment’s hostnames and HTTPS frontend origins. With `DEBUG=False`, HTTPS redirects, secure session/CSRF cookies, and one-year HSTS are enabled by default. Enable `SECURE_HSTS_INCLUDE_SUBDOMAINS` only when every subdomain is HTTPS-only; set `SECURE_HSTS_PRELOAD` only when that commitment is intentional. If TLS terminates at a reverse proxy, configure Django to trust only that proxy’s HTTPS-forwarding header before enabling redirects. Use a production database and review the Django deployment checklist for the hosting environment.
+
 ---
 
 ## API Endpoints
@@ -168,6 +172,7 @@ Content-Type: multipart/form-data
 file: <file>
 doc_type: project_1 | project_2 | internship | project_3
 ```
+Uploads larger than 10 MB are rejected with HTTP 413.
 
 **Plain text:**
 ```
@@ -179,6 +184,8 @@ Content-Type: application/json
   "doc_type": "project_2"
 }
 ```
+
+The readiness score is advisory, not an official grade. Its 100 points are allocated to structure (50), language (35), and formatting (15); word-count estimates are guidance only and do not affect the score. The `total_issues` response field counts actionable findings (errors and warnings), not informational notes.
 
 ---
 
